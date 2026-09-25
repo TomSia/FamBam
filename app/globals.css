@@ -1,26 +1,326 @@
-@import "tailwindcss";
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cork: #b98a5e;
+  --cork-dark: #9c7148;
+  --ink: #2b2118;
+  --yellow: #fdf1a8;
+  --pink: #ffd0d8;
+  --blue: #c9e8f5;
+  --green: #d3f0c2;
+  --orange: #ffdcb0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  margin: 0;
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", -apple-system, sans-serif;
+  background: radial-gradient(circle at 20% 20%, rgba(0, 0, 0, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(0, 0, 0, 0.08), transparent 40%),
+    repeating-linear-gradient(45deg, var(--cork) 0 2px, var(--cork-dark) 2px 4px);
+  color: var(--ink);
+}
+
+.page {
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+header {
+  text-align: center;
+  padding: 28px 16px 8px;
+}
+
+header h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-style: italic;
+  font-size: clamp(28px, 5vw, 42px);
+  margin: 0;
+  color: #fff8e8;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+header p {
+  color: #f3e6cf;
+  margin: 6px 0 0;
+  font-size: 15px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.status {
+  text-align: center;
+  color: #f3e6cf;
+  font-size: 13px;
+  padding-bottom: 10px;
+  opacity: 0.85;
+}
+
+.status-error {
+  color: #ffb4b4;
+}
+
+.board {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  justify-content: center;
+}
+
+.empty {
+  color: #f3e6cf;
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 16px;
+  opacity: 0.85;
+  width: 100%;
+}
+
+.note {
+  width: 190px;
+  min-height: 190px;
+  padding: 18px 16px 16px;
+  box-shadow: 3px 6px 14px rgba(0, 0, 0, 0.35);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.note:hover {
+  transform: scale(1.04) rotate(0deg) !important;
+  z-index: 5;
+}
+
+.note::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 35% 35%, #eee, #999 60%, #555);
+  border-radius: 50%;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+
+.note-yellow { background: var(--yellow); }
+.note-pink { background: var(--pink); }
+.note-blue { background: var(--blue); }
+.note-green { background: var(--green); }
+.note-orange { background: var(--orange); }
+
+.note-image {
+  width: 100%;
+  border-radius: 2px;
+  margin-bottom: 10px;
+  display: block;
+  max-height: 140px;
+  object-fit: cover;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.note-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-author {
+  margin-top: 10px;
+  font-weight: bold;
+  text-align: right;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
+.note-del {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.35;
+  line-height: 1;
+  padding: 4px;
+}
+
+.note-del:hover {
+  opacity: 0.9;
+}
+
+.add-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: #fff8e8;
+  color: var(--ink);
+  font-size: 30px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background: #fff;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 8, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 20;
+}
+
+.modal {
+  background: var(--yellow);
+  width: 100%;
+  max-width: 340px;
+  padding: 24px 22px;
+  box-shadow: 4px 8px 24px rgba(0, 0, 0, 0.4);
+  position: relative;
+  font-family: inherit;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 35% 35%, #eee, #999 60%, #555);
+  border-radius: 50%;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+
+.modal h2 {
+  margin: 6px 0 16px;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-size: 22px;
+}
+
+.modal label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 12px 0 4px;
+}
+
+.modal input[type="text"],
+.modal textarea {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.3);
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  padding: 4px 2px;
+  resize: vertical;
+}
+
+.modal input[type="file"] {
+  width: 100%;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.modal textarea {
+  min-height: 80px;
+}
+
+.modal input:focus,
+.modal textarea:focus {
+  outline: none;
+  border-bottom-color: var(--ink);
+}
+
+.preview-wrap {
+  margin-top: 10px;
+}
+
+.preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+
+.preview-remove {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  font-size: 12px;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  border: none;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: var(--ink);
+  opacity: 0.6;
+}
+
+.btn-cancel:hover {
+  opacity: 1;
+}
+
+.btn-save {
+  background: var(--ink);
+  color: var(--yellow);
+}
+
+.btn-save:hover {
+  background: #463726;
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
