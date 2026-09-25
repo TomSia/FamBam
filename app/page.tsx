@@ -150,8 +150,8 @@ export default function FamilyBoard() {
   return (
     <div className="page">
       <header>
-        <h1>The Family Board</h1>
-        <p>Leave a note for everyone to see</p>
+        <h1>Our Family Board</h1>
+        <p>Leave a note and keep everyone updated!</p>
       </header>
 
       {status && (
