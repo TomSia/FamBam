@@ -1,95 +1,83 @@
-import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import { getSupabaseAdmin, NOTE_IMAGES_BUCKET } from "@/lib/supabase-admin";
 
 export async function GET() {
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("notes")
-    .select("*")
+    .select("id, name, text, image, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("GET /api/notes error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ notes: data });
+}
 
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const name = (body.name || "").toString().trim();
+  const text = (body.text || "").toString().trim();
+  const imageDataUrl: string | null = body.image || null;
+
+  if (!name || !text) {
     return NextResponse.json(
-      { error: "Couldn't load notes." },
-      { status: 500 }
+      { error: "Name and note text are required." },
+      { status: 400 }
     );
   }
 
-  const notes = data.map((note) => ({
-    id: note.id,
-    name: note.name,
-    text: note.text,
-    image: note.image,
-    createdAt: new Date(note.created_at).getTime(),
-  }));
+  const supabase = getSupabaseAdmin();
+  let imageUrl: string | null = null;
 
-  return NextResponse.json({ notes });
-}
+  // The browser still sends a compressed base64 data URL (same as before) —
+  // the difference is the SERVER now puts the bytes in Storage and only
+  // ever writes a short URL string into the notes table.
+  if (imageDataUrl) {
+    const match = imageDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!match) {
+      return NextResponse.json({ error: "Invalid image data." }, { status: 400 });
+    }
+    const [, mime, base64] = match;
+    const buffer = Buffer.from(base64, "base64");
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-
-    const name = String(body.name ?? "").trim();
-    const text = String(body.text ?? "").trim();
-    const image = body.image ?? null;
-
-    if (!name || !text) {
-      return NextResponse.json(
-        { error: "Name and note are required." },
-        { status: 400 }
-      );
+    if (buffer.length > 2_000_000) {
+      return NextResponse.json({ error: "That image is too large." }, { status: 400 });
     }
 
-    if (name.length > 40) {
+    const ext = mime.split("/")[1] || "jpg";
+    const path = `${randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(NOTE_IMAGES_BUCKET)
+      .upload(path, buffer, { contentType: mime, upsert: false });
+
+    if (uploadError) {
       return NextResponse.json(
-        { error: "Name is too long." },
-        { status: 400 }
-      );
-    }
-
-    if (text.length > 500) {
-      return NextResponse.json(
-        { error: "Note is too long." },
-        { status: 400 }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("notes")
-      .insert({
-        name,
-        text,
-        image,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("POST /api/notes error:", error);
-
-      return NextResponse.json(
-        { error: "Couldn't save that note." },
+        { error: "Image upload failed: " + uploadError.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      note: {
-        id: data.id,
-        name: data.name,
-        text: data.text,
-        image: data.image,
-        createdAt: new Date(data.created_at).getTime(),
-      },
-    });
-  } catch (error) {
-    console.error("POST /api/notes unexpected error:", error);
-
-    return NextResponse.json(
-      { error: "Invalid request." },
-      { status: 400 }
-    );
+    const { data: pub } = supabase.storage
+      .from(NOTE_IMAGES_BUCKET)
+      .getPublicUrl(path);
+    imageUrl = pub.publicUrl;
   }
+
+  const { data, error } = await supabase
+    .from("notes")
+    .insert({ name, text, image: imageUrl })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ note: data }, { status: 201 });
 }
